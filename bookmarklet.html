@@ -1,9 +1,216 @@
-Drag and drop the link to your bookmark bar (on some browsers you have to hold the link clicked for a few sec before dragging):<br/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kooba-helper bookmarklet</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; color: #222; }
+code, a.button { font-family: ui-monospace, monospace; }
+a.button { display: inline-block; padding: 0.6rem 1rem; margin-top: 1rem; color: #fff; background: #4f46e5; text-decoration: none; border-radius: 6px; cursor: pointer; }
+a.button:hover { background: #4338ca; }
+</style>
+</head>
+<body>
+<h1>kooba-helper bookmarklet</h1>
+<p>
+Drag the button below to your bookmarks bar (or right-click &rarr; "Bookmark this link").
+When you are on an Abook audiobook listing, click it to add search links for
+<a href="https://nzbindex.com">NZBIndex</a>, <a href="https://www.binsearch.info">BinSearch</a>,
+<a href="https://nzbking.com">NZBKing</a> and an <a href="https://tensai75.github.io/NZBDonkey/">NZBDonkey</a>
+highlight block plus a &ldquo;Copy Title&rdquo; button.
+</p>
+<p>
+It works with Chromium, Brave and Firefox (and can be used as a normal
+bookmarklet — click it on every page you want to use it on).
+</p>
+<a id="bookmarklet" class="button" href="#">kooba helper</a>
 
-<br/>
+<script type="text/javascript" id="bookmarklet-source">
+/* kooba-helper core (bookmarklet-safe, single IIFE). */
+(function () {
+  function sanitizeCommon(code) {
+    if (!code) return '';
+    var c = code.replace(/(?:abook|kooba)\.*(?:to|link|ws)*\s*(?:-|\||~)*\s*/gi, '');
+    c = c.replace(/['"]+/g, ' ');
+    c = c.replace(/\\&+/g, ' ');
+    return c.trim();
+  }
+  var indexers = [
+    { name: 'NZBIndex', url: 'https://DoNotRefer.Me/#https://nzbindex.com/search?max=25&minage=&maxage=&hidespam=1&hidepassword=0&sort=agedesc&minsize=&maxsize=&complete=0&hidecross=0&hasNFO=0&poster=&q={query}', fn: function (c) { return sanitizeCommon(c); } },
+    { name: 'BinSearch', url: 'https://DoNotRefer.Me/#https://www.binsearch.info/?max=1000&adv_age=&adv_sort=date&server=2&q={query}', fn: function (c) { return sanitizeCommon(c); } },
+    { name: 'BinSearch-Abook', url: 'https://DoNotRefer.Me/#https://www.binsearch.info/?max=100&adv_g=alt.binaries.mp3.abooks&adv_age=&adv_sort=date&q={query}', fn: function (c) { return sanitizeCommon(c); } },
+    { name: 'NZBKing', url: 'https://DoNotRefer.Me/#http://nzbking.com/search/?q=%22{query}%22', fn: function (c) { return sanitizeCommon(c); } }
+  ];
+  function buildSearchLinks(code) {
+    if (!code) return '';
+    var list = '';
+    indexers.forEach(function (i) {
+      var q = encodeURIComponent(i.fn(code));
+      list += '<li><a rel="noreferrer" rel="noopener" target="_blank" href="' + i.url.replace(/{query}/g, q) + '">' + i.name + '</a></li>';
+    });
+    return list;
+  }
+  function isPasswordCode(c) { return c.toLowerCase().indexOf('password') !== -1; }
+  function isPasswordLabel(el) {
+    var s = el.previousSibling, n = 0;
+    while (s && n < 3) {
+      if ((s.textContent || '').toLowerCase().indexOf('password') !== -1) return true;
+      s = s.previousSibling; n++;
+    }
+    return false;
+  }
+  function extractCodeText(header) {
+    // Detect the first non-header node that directly follows the .codeheader.
+    var probe = header.nextSibling;
+    // If the next node is a whitespace text node (common in formatted HTML),
+    // advance to the next element node to find the actual codebox/br.
+    while (probe && probe.nodeType === 3 && /\s/.test(probe.textContent)) {
+      probe = probe.nextSibling || probe.parentNode.nextSibling;
+    }
+    if (!probe) return '';
 
-<a href="javascript:(function()%7B%2F%2F%20%3D%3DUserScript%3D%3D%0A%2F%2F%20%40name%20kooba-helper%0A%2F%2F%20%40namespace%20%20%20%20kooba-helper%40shrek%0A%2F%2F%20%40description%20For%20a%20better%20kooba%3C%3D%3Eabook%20experience.%20This%20adds%20search%20links%20to%20Abook%20forums%20code%20boxes.%0A%2F%2F%20%40author%20Shrek%2C%20rhymesagainsthumanity%2C%20pushr%20(original%20creator)%0A%2F%2F%20%40version%202022.06.23.1%0A%2F%2F%20%40updateURL%20https%3A%2F%2Fshrekislovelife.github.io%2Fkooba-helper%2Fkooba-helper.meta.js%0A%2F%2F%20%40downloadURL%20https%3A%2F%2Fshrekislovelife.github.io%2Fkooba-helper%2Fkooba-helper.user.js%0A%2F%2F%20%40supportURL%20https%3A%2F%2Fabook.link%2Fbook%2Findex.php%3Ftopic%3D54768%0A%2F%2F%20%40include%20*%3A%2F%2Fabook.link%2F*%0A%2F%2F%20%40match%20*%3A%2F%2Fabook.link%2F*%0A%2F%2F%20%40run-at%20document-end%0A%2F%2F%20%40grant%20none%0A%2F%2F%20%3D%3D%2FUserScript%3D%3D%0A%0A%0Afunction%20sanatize_common(code)%20%7B%0A%20%20%20%20code%20%3D%20code.replace(%2F(%3F%3Aabook%7Ckooba)%5C.*(%3F%3Ato%7Clink%7Cws)*%5Cs*(%3F%3A-%7C%5C%7C%7C~)*%5Cs*%2Fgi%2C%20'')%3B%0A%20%20%20%20code%20%3D%20code.replace(%2F%5B'%22%5D%2B%2Fg%2C%20'')%3B%0A%20%20%20%20code%20%3D%20code.replace(%2F%5C%5C%26%2B%2Fg%2C%20'%20')%3B%0A%20%20%20%20return%20code.trim()%3B%0A%7D%0A%0Aconst%20indexers%20%3D%20%5B%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20name%3A%20'NZBIndex'%2C%0A%20%20%20%20%20%20%20%20url%3A%20'https%3A%2F%2FDoNotRefer.Me%2F%23https%3A%2F%2Fnzbindex.com%2Fsearch%3Fmax%3D25%26minage%3D%26maxage%3D%26hidespam%3D1%26hidepassword%3D0%26sort%3Dagedesc%26minsize%3D%26maxsize%3D%26complete%3D0%26hidecross%3D0%26hasNFO%3D0%26poster%3D%26q%3D%7Bquery%7D'%2C%0A%20%20%20%20%20%20%20%20codeFn%3A%20function(code)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%20sanatize_common(code)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%2C%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20name%3A%20'BinSearch'%2C%0A%20%20%20%20%20%20%20%20url%3A%20'https%3A%2F%2FDoNotRefer.Me%2F%23https%3A%2F%2Fwww.binsearch.info%2F%3Fmax%3D1000%26%26adv_age%3D%26adv_sort%3Ddate%26server%3D2%26%26q%3D%7Bquery%7D'%2C%0A%20%20%20%20%20%20%20%20codeFn%3A%20function(code)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%20sanatize_common(code)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%2C%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20name%3A%20'BinSearch-Abook'%2C%0A%20%20%20%20%20%20%20%20url%3A%20'https%3A%2F%2FDoNotRefer.Me%2F%23https%3A%2F%2Fwww.binsearch.info%2F%3Fmax%3D100%26adv_g%3Dalt.binaries.mp3.abooks%26adv_age%3D%26adv_sort%3Ddate%26q%3D%7Bquery%7D'%2C%0A%20%20%20%20%20%20%20%20codeFn%3A%20function(code)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%20sanatize_common(code)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%2C%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20name%3A%20'NZBKing'%2C%0A%20%20%20%20%20%20%20%20url%3A%20'https%3A%2F%2FDoNotRefer.Me%2F%23http%3A%2F%2Fnzbking.com%2Fsearch%2F%3Fq%3D%2522%7Bquery%7D%2522'%2C%0A%20%20%20%20%20%20%20%20codeFn%3A%20function(code)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%20sanatize_common(code)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%5D%3B%0A%0Afunction%20buildLinks(code)%7B%0A%20%20%20%20console.log(%22Build%3A%20%22%2C%20code)%3B%0A%20%20%20%20let%20list%20%3D%20''%3B%0A%20%20%20%20indexers.forEach(function%20(index)%20%7B%0A%20%20%20%20%20%20%20%20console.log(%22IC%3A%20%22%2C%20index.codeFn(code))%3B%0A%20%20%20%20%20%20%20%20const%20link%20%3D%20index.url.replace(%2F%7Bquery%7D%2Fg%2C%20encodeURIComponent(index.codeFn(code)))%3B%0A%0A%20%20%20%20%20%20%20%20list%20%2B%3D%20%60%0A%20%20%20%20%20%20%3Cli%3E%0A%20%20%20%20%20%20%20%20%3Ca%20rel%3D%22noreferrer%22%20rel%3D%22noopener%22%20target%3D%22_blank%22%20href%3D%22%24%7Blink%7D%22%3E%0A%20%20%20%20%20%20%20%20%20%20%24%7Bindex.name%7D%0A%20%20%20%20%20%20%20%20%3C%2Fa%3E%0A%20%20%20%20%20%20%3C%2Fli%3E%0A%20%20%20%20%60%3B%0A%20%20%20%20%7D)%3B%0A%0A%20%20%20%20return%20list%3B%0A%7D%0A%0Afunction%20checkHeader(header)%7B%0A%20%20%20%20%2F%2F%20Check%20if%20any%20of%20the%20previous%205%20siblings%20contain%20sting%20of%20%22password%22%0A%20%20%20%20let%20heading%20%3D%20header.previousSibling%3B%0A%20%20%20%20let%20i%20%3D%200%3B%0A%20%20%20%20while%20(heading%20%26%26%20i%20%3C%205)%20%7B%0A%20%20%20%20%20%20%20%20i%2B%2B%3B%0A%20%20%20%20%20%20%20%20if%20(heading.textContent.toLowerCase().includes('password'))%20return%20true%3B%0A%20%20%20%20%20%20%20%20heading%20%3D%20heading.previousSibling%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20return%20false%3B%0A%7D%0A%0Afunction%20checkCode(code)%7B%0A%20%20%20%20%2F%2F%20Check%20if%20code%20itself%20contains%20string%20of%20%22password%22%0A%20%20%20%20return%20code.toLowerCase().includes('password')%3B%0A%7D%0A%0Afunction%20process_kooba_search()%20%7B%0A%20%20%20%20console.log('Process%20Kooba')%3B%0A%20%20%20%20const%20headers%20%3D%20document.querySelectorAll('.codeheader')%3B%0A%20%20%20%20if%20(headers)%7B%0A%20%20%20%20%20%20%20%20headers.forEach(function%20(header)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Skip%20if%20already%20processed%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(%20header.classList.contains('kooba_crunched')%20)%20return%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20let%20code%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(header.nextSibling.nodeName.toUpperCase()%20%3D%3D%20'BR')%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log('PostBot%20Style')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20code%20%3D%20header.nextSibling.nextSibling.textContent%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log('New%20Style')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20code%20%3D%20header.nextSibling.textContent%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20console.log('Code%3A%20'%2C%20code)%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Skip%20if%20code%20is%20a%20password%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(checkHeader(header)%20%7C%7C%20checkCode(code))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log('Skipped%20password%3A%20'%20%2B%20code)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20header.classList.add('kooba_crunched')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20console.log(header)%3B%0A%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20let%20codes%20%3D%20header.parentElement.querySelectorAll('.bbc_code')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20let%20password%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(codes.length%20%3E%3D%202)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20password%20likely%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20for%20(let%20i%20%3D%201%3B%20i%20%3C%20codes.length%3B%20i%2B%2B)%20%7B%20%2F%2F%20not%20first%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20let%20ele%20%3D%20codes%5Bi%5D%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log(ele)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20let%20tmp_code%20%3D%20ele.textContent%3B%0A%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(checkHeader(ele)%20%7C%7C%20checkCode(tmp_code))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20password%20%3D%20tmp_code%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20console.log('Password%3A%20'%2C%20password)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20var%20page_author%20%3D%20document.querySelector('%23author')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20var%20page_title%20%3D%20page_author.nextSibling.textContent.match(%2FTopic%3A(.*%3F)(%3F%3A%5C(Read)%2Fi)%5B1%5D.replace(%2F%5C%5Bspot%5C%5D%2Fgi%2C'').trim()%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20var%20iObjCopyTitle%20%3D%20document.createElement('a')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20iObjCopyTitle.id%20%3D%20'kooba-title-copy2'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20iObjCopyTitle.classList.add('kooba-title-copy2')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20iObjCopyTitle.dataset.cipboard%20%3D%20page_title%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20iObjCopyTitle.title%20%3D%20'Copy%20%22'%20%2B%20page_title%20%2B%20'%22%20to%20clipboard'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20iObjCopyTitle.innerHTML%20%3D%20%60%20%5BCopy%20Title%5D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20iObjCopyTitle.addEventListener('click'%2C%20function(e)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20kooba_copy_clipboard_data(e.target)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20content%20%3D%20%60%0A%20%20%20%20%20%20%20%20%3Cdiv%20class%3D%22kooba-search-links%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cspan%3ESearch%3A%3C%2Fspan%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cul%3E%24%7BbuildLinks(code)%7D%3C%2Ful%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20header.classList.add('kooba_crunched')%3B%20%2F%2F%20add%20tracking%20class%0A%20%20%20%20%20%20%20%20%20%20%20%20header.insertAdjacentHTML('beforeend'%2C%20content)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20header.insertAdjacentElement(%22beforeend%22%2C%20iObjCopyTitle)%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20content_nzbdonkey%20%3D%20%60%0A%20%20%20%20%20%20%20%20%3Cdiv%20class%3D%22kooba-nzbdonkey%22%3E%0A%09%09%09%3Cdiv%20class%3D%22kooba-nzbdonkey-title%22%3ENZBDonkey%20Highlight%20Text%20%3Ca%20class%3D%22kooba-nzbdonkey-help%22%20target%3D%22_blank%22%20href%3D%22https%3A%2F%2Ftensai75.github.io%2FNZBDonkey%2F%22%20title%3D%22This%20extension%20allows%20you%20to%20right%20click%20the%20text%20below%20and%20click%20'Get%20NZB%20File'%20to%20automatically%20find%20and%20process%20the%20NZB.%5Cn%5CnAnother%20extension%20is%20required.%22%3E%3F%3C%2Fa%3E%3C%2Fdiv%3E%0A%09%09%09%3Cdiv%20class%3D%22kooba-nzbdonkey-text%22%20%20onclick%3D%22window.getSelection().selectAllChildren(this)%3B%22%20oncontextmenu%3D%22window.getSelection().selectAllChildren(this)%3B%22%3E%0A%09%09%09%09%3Cdiv%3E%24%7Bpage_title%7D%3C%2Fdiv%3E%0A%09%09%09%09%3Cdiv%3EHeader%3A%20%24%7Bsanatize_common(code)%7D%3C%2Fdiv%3E%0A%09%09%09%09%3Cdiv%3EPassword%3A%20%24%7Bpassword%7D%3C%2Fdiv%3E%0A%09%09%09%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%60%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20header.parentElement.insertAdjacentHTML('beforeend'%2C%20content_nzbdonkey)%3B%0A%0A%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%7D%0A%7D%0A%0Afunction%20inject_kooba_style()%20%7B%0A%20%20%20%20document.querySelector('head').innerHTML%20%2B%3D%20%60%0A%3Cstyle%3E%0A%0A.kooba-search-links%2C%0A.kooba-search-links%20span%2C%0A.kooba-search-links%20ul%2C%0A.kooba-search-links%20li%20%7B%0A%20%20display%3A%20inline-block%3B%0A%7D%0A%0A.kooba-search-links%20span%20%7B%0A%20%20margin-left%3A%20.5em%3B%0A%7D%0A%0A.kooba-search-links%20ul%20%7B%0A%20%20list-style%3A%20none%3B%0A%20%20margin%3A%200%3B%0A%20%20padding-left%3A%200%3B%0A%7D%0A%0A.kooba-search-links%20li%20%7B%0A%20%20margin%3A%200%3B%0A%20%20padding%3A%200%3B%0A%7D%0A%0A.kooba-search-links%20li%3Anot(%3Alast-child)%3Aafter%20%7B%0A%20%20color%3A%20%23ccc%3B%0A%20%20content%3A'%7C'%3B%0A%7D%0A%0A.kooba-search-links%20a%20%7B%0A%20%20margin%3A%200%3B%0A%20%20padding%3A%200%20.5em%3B%0A%7D%0A%0A.kooba-title-copy%20%7B%0A%20%20%20%20color%3A%20%2357aad2%3B%0A%7D%0A.kooba-title-copy%3Ahover%20%7B%0A%20%20%20%20text-decoration%3A%20underline%3B%0A%7D%0A%0A.kooba-title-copy2%20%7B%0A%20%20%20%20margin-left%3A%2030px%3B%0A%20%20%20%20color%3A%20%239383e0%3B%0A%20%20%20%20font-weight%3A%20normal%3B%0A%7D%0A.kooba-title-copy2%3Ahover%20%7B%0A%20%20%20%20text-decoration%3A%20underline%3B%0A%7D%0A%0A.kooba-nzbdonkey%20%7B%0A%20%20%20%20margin-top%3A%2020px%3B%0A%20%20%20%20border%3A%201px%20dotted%20yellow%3B%0A%20%20%20%20padding%3A%2010px%3B%0A%7D%0A.kooba-nzbdonkey-title%20%7B%0A%20%20%20%20font-weight%3A%20bold%3B%0A%20%20%20%20color%3A%20red%3B%0A%7D%0Aa.kooba-nzbdonkey-help%20%7B%0A%20%20%20%20text-decoration%3A%20none%3B%0A%20%20%20%20color%3A%20%232196f3%3B%0A%20%20%20%20border-bottom%3A%201px%20dotted%20%232196f3%3B%0A%7D%0A.kooba-nzbdonkey-text%20%7B%0A%20%20%20%20font-size%3A%2010px%3B%0A%20%20%20%20font-weight%3A%20normal%3B%0A%20%20%20%20font-family%3A%20monospace%3B%0A%20%20%20%20color%3A%20%23bb96e0%3B%0A%20%20%20%20padding-left%3A%2030px%3B%0A%7D%0A%3C%2Fstyle%3E%0A%0A%60%3B%0A%7D%0A%0A%0Awindow%5B'kooba_copy_clipboard_str'%5D%20%3D%20str%20%3D%3E%20%7B%0A%20%20%20%20const%20el%20%3D%20document.createElement('textarea')%3B%0A%20%20%20%20el.value%20%3D%20str%3B%0A%20%20%20%20el.setAttribute('readonly'%2C%20'')%3B%0A%20%20%20%20el.style.position%20%3D%20'absolute'%3B%0A%20%20%20%20el.style.left%20%3D%20'-9999px'%3B%0A%20%20%20%20document.body.appendChild(el)%3B%0A%20%20%20%20el.select()%3B%0A%20%20%20%20document.execCommand('copy')%3B%0A%20%20%20%20document.body.removeChild(el)%3B%0A%7D%3B%0A%0A%0Awindow%5B'kooba_copy_clipboard_data'%5D%20%3D%20function%20kooba_copy_clipboard_data(obj)%20%7B%0A%20%20%20%20kooba_copy_clipboard_str(obj.dataset.cipboard)%3B%0A%0A%20%20%20%20var%20iDiv3%20%3D%20document.createElement('div')%3B%0A%20%20%20%20iDiv3.className%20%3D%20'copied_to_clipboard'%3B%0A%20%20%20%20iDiv3.style.border%20%3D%20'1px%20solid%20red'%3B%0A%20%20%20%20iDiv3.style.backgroundColor%20%3D%20'red'%3B%0A%20%20%20%20iDiv3.style.color%20%3D%20'yellow'%3B%0A%20%20%20%20iDiv3.style.textAlign%20%3D%20'center'%3B%0A%20%20%20%20iDiv3.style.display%20%3D%20'inline-block'%3B%0A%20%20%20%20iDiv3.style.position%20%3D%20'absolute'%3B%0A%20%20%20%20iDiv3.style.marginLeft%20%3D%20'10px'%3B%0A%20%20%20%20%2F%2F%20iDiv3.style.width%20%3D%20obj.offsetWidth%20%2B%20'px'%3B%0A%20%20%20%20iDiv3.innerHTML%20%3D%20'text%20copied%20to%20clipboard'%3B%0A%20%20%20%20kooba_insert_after(iDiv3%2C%20obj)%3B%0A%20%20%20%20setTimeout(function()%20%7B%0A%20%20%20%20%20%20%20%20var%20elements%20%3D%20document.getElementsByClassName('copied_to_clipboard')%3B%0A%20%20%20%20%20%20%20%20while(elements.length%20%3E%200)%7B%20elements%5B0%5D.parentNode.removeChild(elements%5B0%5D)%3B%20%7D%0A%20%20%20%20%7D%2C%202000)%3B%0A%7D%0A%0Awindow%5B'kooba_insert_after'%5D%20%3D%20function%20kooba_insert_after(newNode%2C%20existingNode)%20%7B%0A%20%20%20%20existingNode.parentNode.insertBefore(newNode%2C%20existingNode.nextSibling)%3B%0A%7D%0A%0Awindow%5B'inject_kooba_title_copy'%5D%20%3D%20function%20inject_kooba_title_copy()%20%7B%0A%20%20%20%20if%20(%20document.querySelector('%23kooba-title-copy')%20%3D%3D%3D%20null%20)%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20var%20page_title%20%3D%20document.querySelector('title').text.match(%2FBook%20Club%C2%A0-%C2%A0(.*)%2Fi)%5B1%5D.trim()%3B%0A%20%20%20%20%20%20%20%20var%20page_author%20%3D%20document.querySelector('%23author')%3B%0A%20%20%20%20%20%20%20%20var%20page_title%20%3D%20page_author.nextSibling.textContent.match(%2FTopic%3A(.*%3F)(%3F%3A%5C(Read)%2Fi)%5B1%5D.replace(%2F%5C%5Bspot%5C%5D%2Fgi%2C'').trim()%3B%0A%0A%20%20%20%20%20%20%20%20var%20iObjCopyTitle%20%3D%20document.createElement('a')%3B%0A%20%20%20%20%20%20%20%20iObjCopyTitle.classList.add('kooba-title-copy')%3B%0A%20%20%20%20%20%20%20%20iObjCopyTitle.id%20%3D%20'kooba-title-copy'%3B%0A%20%20%20%20%20%20%20%20iObjCopyTitle.dataset.cipboard%20%3D%20page_title%3B%0A%20%20%20%20%20%20%20%20iObjCopyTitle.title%20%3D%20'Copy%20%22'%20%2B%20page_title%20%2B%20'%22%20to%20clipboard'%3B%0A%20%20%20%20%20%20%20%20iObjCopyTitle.innerHTML%20%3D%20%60%20%5BCopy%5D%60%3B%0A%20%20%20%20%20%20%20%20iObjCopyTitle.addEventListener('click'%2C%20function(e)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20kooba_copy_clipboard_data(e.target)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%20%20kooba_insert_after(iObjCopyTitle%2C%20page_author.nextSibling)%3B%0A%20%20%20%20%7D%0A%7D%0A%0Aif%20((%0A%20%20%20%20document.querySelector('a%5Bhref%3D%22https%3A%2F%2Fabook.link%2Fbook%2Findex.php%23c3%22%5D')%0A%20%20%20%20%7C%7C%20document.querySelector('a%5Bhref%3D%22https%3A%2F%2Fabook.link%2Fbook%2Findex.php%3Fboard%3D18.0%22%5D')%0A))%20%7B%0A%20%20%20%20inject_kooba_title_copy()%3B%0A%20%20%20%20inject_kooba_style()%3B%0A%20%20%20%20process_kooba_search()%3B%0A%20%20%20%20console.log('Injecting%20Detour%20of%20Thank%20Function')%3B%0A%20%20%20%20%2F%2F%20detour%20the%20original%20thank%20you%20click%20action%0A%20%20%20%20window%5B'orig_saythanks_handleThankClick'%5D%20%3D%20saythanks.prototype.handleThankClick%3B%0A%20%20%20%20saythanks.prototype.handleThankClick%20%3D%20function%20(oInput)%20%7B%0A%20%20%20%20%20%20%20%20console.log('Thank%20Detected')%3B%20%2F%2F%20output%20to%20console%20that%20we%20intercepted%20the%20thank%0A%20%20%20%20%20%20%20%20window%5B'orig_saythanks_handleThankClick'%5D(oInput)%3B%20%2F%2F%20call%20original%20thank%20action%0A%20%20%20%20%20%20%20%20setTimeout(process_kooba_search%2C%20200)%3B%20%2F%2F%20look%20for%20search%20boxes%0A%20%20%20%20%20%20%20%20setTimeout(process_kooba_search%2C%201000)%3B%20%2F%2F%20it%20should%20catch%20after%20200%20ms%20but%0A%20%20%20%20%20%20%20%20setTimeout(process_kooba_search%2C%202000)%3B%20%2F%2F%20here%20are%20a%20few%20more%20intervals%20to%0A%20%20%20%20%20%20%20%20setTimeout(process_kooba_search%2C%205000)%3B%20%2F%2F%20keep%20trying%2C%20because%20it%20can't%20hurt%2C%0A%20%20%20%20%20%20%20%20setTimeout(process_kooba_search%2C%2010000)%3B%20%2F%2F%20%20since%20we%20track%20injection%20now%0A%20%20%20%20%7D%0A%7D%7D)()%3B" style="user-select: none;">kooba helper</a>
+    var name = probe.nodeName ? probe.nodeName.toUpperCase() : '';
+    if (name === 'BR') {
+      // PostBot style: <br> is followed by the codebox. Walk past any
+      // whitespace text nodes to find the actual code element.
+      var node = probe.nextSibling;
+      while (node) {
+        if (node.nodeType === 3) {
+          // Skip whitespace-only text nodes; take the first text node
+          // that actually contains the code.
+          var text = node.textContent.replace(/\s+/g, ' ').trim();
+          if (text) return text;
+        } else if (node.nodeType === 1) {
+          var firstCode = node.querySelector ? node.querySelector('.bbc_code') : null;
+          if (firstCode) return (firstCode.textContent || '').trim();
+          return (node.textContent || '').trim();
+        }
+        node = node.nextSibling;
+      }
+      return '';
+    }
+    if (probe.nodeType === 3) return probe.textContent.trim();
+    var d = probe.nextElementSibling;
+    if (d) {
+      var firstCode = d.querySelector('.bbc_code');
+      if (firstCode) return (firstCode.textContent || '').trim();
+      return (d.textContent || '').trim();
+    }
+    return n.textContent.trim();
+  }
+  function getTopicTitle() {
+    var author = document.querySelector('#author');
+    if (!author) return null;
+    var n = author.nextSibling;
+    if (n && n.nodeType === 3) {
+      var m = n.textContent.match(/Topic:(.*?)(?:\(Read)/i);
+      if (m && m[1]) return m[1].replace(/\[spot\]/gi, '').trim();
+    }
+    var t = author.textContent || '';
+    m = t.match(/Topic:(.*?)(?:\(Read)/i);
+    if (m && m[1]) return m[1].replace(/\[spot\]/gi, '').trim();
+    return null;
+  }
+  function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {});
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'absolute';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  function showCopied() {
+    var ex = document.querySelector('.kooba-copied-feedback');
+    if (ex) ex.remove();
+    var d = document.createElement('div');
+    d.className = 'kooba-copied-feedback';
+    d.textContent = 'Copied to clipboard';
+    d.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,.75);color:yellow;padding:6px 10px;border-radius:4px;font-family:sans-serif;z-index:99999;';
+    document.body.appendChild(d);
+    setTimeout(function () { d.remove(); }, 2000);
+  }
+  function injectStyle() {
+    if (document.getElementById('kooba-style')) return;
+    var s = document.createElement('style');
+    s.id = 'kooba-style';
+    s.textContent =
+      '.kooba-search-links,.kooba-search-links span,.kooba-search-links ul,.kooba-search-links li{display:inline-block}.kooba-search-links span{margin-left:.5em}.kooba-search-links ul{list-style:none;margin:0;padding-left:0}.kooba-search-links li{margin:0;padding:0}.kooba-search-links li:not(:last-child):after{color:#ccc;content:"|"}.kooba-search-links a{margin:0;padding:0 .5em}.kooba-title-copy{color:#57aad2}.kooba-title-copy:hover{text-decoration:underline}.kooba-title-copy2{margin-left:30px;color:#9383e0;font-weight:normal}.kooba-title-copy2:hover{text-decoration:underline}.kooba-nzbdonkey{margin-top:20px;border:1px dotted yellow;padding:10px}.kooba-nzbdonkey-title{font-weight:bold;color:red}a.kooba-nzbdonkey-help{text-decoration:none;color:#2196f3;border-bottom:1px dotted #2196f3}.kooba-nzbdonkey-text{font-size:10px;font-weight:normal;font-family:monospace;color:#bb96e0;padding-left:30px;user-select:all;-moz-user-select:all;cursor:text}';
+    document.head.appendChild(s);
+  }
+  function buildKoobaBlock(header) {
+    var code = extractCodeText(header);
+    var title = getTopicTitle();
+    if (isPasswordLabel(header)) { header.classList.add('kooba_crunched'); return; }
+    var password = '';
+    var parent = header.parentElement;
+    var boxes = parent ? parent.querySelectorAll('.bbc_code') : [];
+    if (boxes.length >= 2) {
+      for (var i = 1; i < boxes.length; i++) {
+        var st = boxes[i] ? (boxes[i].textContent || '').trim() : '';
+        if (isPasswordCode(st)) { password = st; break; }
+      }
+    }
+    var lines = [];
+    lines.push(title || 'Untitled topic');
+    var h = sanitizeCommon(code);
+    if (h) lines.push('Header: ' + h);
+    var block =
+      '<div class="kooba-nzbdonkey">' +
+      '<div class="kooba-nzbdonkey-title">NZBDonkey Highlight Text <a class="kooba-nzbdonkey-help" target="_blank" href="https://tensai75.github.io/NZBDonkey/" title="This extension lets you right-click the text below and choose \'Get NZB File\' to automatically find and process the NZB. Another extension is required.">?</a></div>' +
+      '<div class="kooba-nzbdonkey-text" title="' + lines.join('\n') + '">' + lines.join('\n') + '</div>' +
+      '</div>';
+    header.classList.add('kooba_crunched');
+    var t = document.createElement('template');
+    // Skip the search-links block when this header's code is itself a
+    // password (short, alphanumeric-ish) — search engines don't benefit
+    // from indexing a password string.
+    var passwordLike = isPasswordCode(code) && code.length < 200;
+    t.innerHTML = '<div class="kooba-search-links"><span>Search:</span>' + (passwordLike ? '' : '<ul>' + buildSearchLinks(code) + '</ul>') + '</div>';
+    while (t.content.firstChild) header.appendChild(t.content.firstChild);
+    var copyBtn = document.createElement('a');
+    copyBtn.className = 'kooba-title-copy2';
+    copyBtn.title = 'Copy "' + (title || 'Untitled topic') + '" to clipboard';
+    copyBtn.textContent = ' [Copy Title]';
+    copyBtn.dataset.cipboard = title || '';
+    copyBtn.addEventListener('click', function (e) { e.preventDefault(); copyTextToClipboard(title || 'Untitled topic'); });
+    header.appendChild(copyBtn);
+    header.parentElement.insertAdjacentHTML('beforeend', block);
+  }
+  function processKoobaSearch() {
+    var headers = document.querySelectorAll('.codeheader');
+    [].forEach.call(headers, function (h) {
+      if (h.classList.contains('kooba_crunched')) return;
+      buildKoobaBlock(h);
+    });
+  }
+  function init() {
+    injectStyle();
+    processKoobaSearch();
+    if (window.MutationObserver) {
+      var obs = new MutationObserver(function () { processKoobaSearch(); });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } else {
+      setInterval(processKoobaSearch, 5000);
+    }
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') { init(); }
+  else { window.addEventListener('load', init, { once: true }); }
+window.__koobaTest = { processKoobaSearch, buildKoobaBlock, init, getTopicTitle, extractCodeText };window.__koobaTest = { processKoobaSearch, buildKoobaBlock, init, getTopicTitle, extractCodeText };window.__koobaTest = { processKoobaSearch, buildKoobaBlock, init, getTopicTitle, extractCodeText };
+})();
+</script>
 
-<br/><br/>
-When on an Abook audiobook listing, click the bookmarklet to add search links to the current page.
-<br/>
+<script>
+(function () {
+  var src = document.getElementById('bookmarklet-source');
+  var link = document.getElementById('bookmarklet');
+  link.href = 'javascript:' + encodeURIComponent(src.textContent);
+})();
+</script>
+</body>
+</html>
